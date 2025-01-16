@@ -1,5 +1,6 @@
 package com.noliveira.demo_park_api.web.exception;
 
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -13,15 +14,49 @@ import com.noliveira.demo_park_api.exception.CodigoUniqueViolationException;
 import com.noliveira.demo_park_api.exception.CpfUniqueViolationException;
 import com.noliveira.demo_park_api.exception.EntityNotFoundException;
 import com.noliveira.demo_park_api.exception.PasswordInvalidException;
+import com.noliveira.demo_park_api.exception.ReciboCheckInNotFoundException;
 import com.noliveira.demo_park_api.exception.UsernameUniqueViolationException;
+import com.noliveira.demo_park_api.exception.VagaDisponivelException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@RequiredArgsConstructor
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+	private final MessageSource messageSource;
+	
+
+	@ExceptionHandler(ReciboCheckInNotFoundException.class)
+	public ResponseEntity<ErrorMessage> reciboCheckInNotFoundException(ReciboCheckInNotFoundException ex, HttpServletRequest request) {
+		Object[] params =  new Object[]{ex.getRecibo()};
+		String message = messageSource.getMessage("exception.reciboCheckInNotFoundException", params, request.getLocale());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON)
+				.body(new ErrorMessage(request, HttpStatus.NOT_FOUND, message));
+
+	}
+	
+	@ExceptionHandler(EntityNotFoundException.class)
+	public ResponseEntity<ErrorMessage> entityNotFoundException(EntityNotFoundException ex, HttpServletRequest request) {
+		Object[] params =  new Object[]{ex.getRecurso(), ex.getCodigo()};
+		String message = messageSource.getMessage("exception.entityNotFoundException", params, request.getLocale());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON)
+				.body(new ErrorMessage(request, HttpStatus.NOT_FOUND, message));
+
+	}
+	
+	@ExceptionHandler(CodigoUniqueViolationException.class)
+	public ResponseEntity<ErrorMessage> codigoUniqueViolationException(CodigoUniqueViolationException ex, HttpServletRequest request) {
+		Object[] params =  new Object[]{ex.getRecurso(), ex.getCodigo()};
+		String message = messageSource.getMessage("exception.codigoUniqueViolationException", params, request.getLocale());
+		return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+				.body(new ErrorMessage(request, HttpStatus.CONFLICT, message));
+
+	}
+	
 	@ExceptionHandler(AccessDeniedException.class)
 	public ResponseEntity<ErrorMessage> accessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
 
@@ -32,7 +67,7 @@ public class ApiExceptionHandler {
 
 	}
 	
-	@ExceptionHandler({UsernameUniqueViolationException.class, CpfUniqueViolationException.class, CodigoUniqueViolationException.class})
+	@ExceptionHandler({UsernameUniqueViolationException.class, CpfUniqueViolationException.class})
 	public ResponseEntity<ErrorMessage> uniqueViolationException(RuntimeException ex, HttpServletRequest request) {
 
 		log.error("Api Error - ", ex);
@@ -41,12 +76,12 @@ public class ApiExceptionHandler {
 
 	}
 
-	@ExceptionHandler(EntityNotFoundException.class)
-	public ResponseEntity<ErrorMessage> entityNotFoundException(RuntimeException ex, HttpServletRequest request) {
-
-		log.error("Api Error - ", ex);
+	
+	@ExceptionHandler(VagaDisponivelException.class)
+	public ResponseEntity<ErrorMessage> vagaDisponivelException(RuntimeException ex, HttpServletRequest request) {
+		String message = messageSource.getMessage("exception.vagaDisponivelException", null, request.getLocale());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON)
-				.body(new ErrorMessage(request, HttpStatus.NOT_FOUND, ex.getMessage()));
+				.body(new ErrorMessage(request, HttpStatus.NOT_FOUND, message));
 
 	}
 
@@ -65,7 +100,18 @@ public class ApiExceptionHandler {
 
 		log.error("Api Error - ", ex);
 		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON)
-				.body(new ErrorMessage(request, HttpStatus.UNPROCESSABLE_ENTITY, "Campo(s) Inválido(s)", result));
+				.body(new ErrorMessage(request, HttpStatus.UNPROCESSABLE_ENTITY, messageSource.getMessage("message.invalid.field", null, request.getLocale()), result, messageSource));
+
+	}
+	
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<ErrorMessage> internalServerErrorException(Exception ex, HttpServletRequest request) {
+		ErrorMessage error = new ErrorMessage(
+				request, HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase()
+		);
+		log.error("Internal Server Error {} {} ", error, ex.getMessage());
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
+				.body(error);
 
 	}
 
